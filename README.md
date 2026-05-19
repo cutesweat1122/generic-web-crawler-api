@@ -34,7 +34,19 @@ OpenAPI documentation is available at:
 
 ## API
 
+Public API base URL:
+
+```text
+https://generic-web-crawler-api.onrender.com
+```
+
 ### `POST /crawl`
+
+Endpoint:
+
+```text
+https://generic-web-crawler-api.onrender.com/crawl
+```
 
 Request:
 
