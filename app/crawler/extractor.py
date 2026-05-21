@@ -9,6 +9,7 @@ MAX_BODY_CHARS = 100_000
 
 
 def _clean_text(value: str | None) -> str:
+    # normalize whitespace
     return " ".join((value or "").split())
 
 
@@ -39,12 +40,14 @@ def extract_content(html: str, url: str, render_mode: RenderMode) -> CrawlData:
     soup = BeautifulSoup(html, "lxml")
     title = _clean_text(soup.title.string if soup.title else "")
 
+    # extract headings
     headings = [
         _clean_text(heading.get_text(" ", strip=True))
         for heading in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"])
     ]
     headings = [heading for heading in headings if heading]
 
+    # extract links
     links: list[ExtractedLink] = []
     for anchor in soup.find_all("a", href=True):
         href = _clean_text(anchor.get("href"))
@@ -52,10 +55,11 @@ def extract_content(html: str, url: str, render_mode: RenderMode) -> CrawlData:
             links.append(
                 ExtractedLink(
                     text=_clean_text(anchor.get_text(" ", strip=True)),
-                    href=urljoin(url, href),
+                    href=urljoin(url, href), # builds an absolute URL from a base URL and another path
                 )
             )
 
+    # extract images
     images: list[ExtractedImage] = []
     for image in soup.find_all("img", src=True):
         src = _clean_text(image.get("src"))

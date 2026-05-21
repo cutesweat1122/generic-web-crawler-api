@@ -35,8 +35,10 @@ async def render_dynamic_html(url: str) -> str:
         raise RenderingError("Playwright is not installed.") from exc
 
     async def render_with_args(chromium: BrowserType, args: list[str]) -> str:
+        # launch the browser
         browser = await chromium.launch(headless=True, args=args)
         try:
+            # create a new browser context
             context = await browser.new_context(
                 user_agent=CHROME_USER_AGENT,
                 extra_http_headers={
@@ -48,6 +50,7 @@ async def render_dynamic_html(url: str) -> str:
                 timezone_id="America/Los_Angeles",
                 viewport={"width": 1366, "height": 768},
             )
+            # opens a new page
             page = await context.new_page()
 
             async def block_heavy_assets(route):
@@ -56,13 +59,16 @@ async def render_dynamic_html(url: str) -> str:
                     return
                 await route.continue_()
 
+            # block heavy assets
             await page.route("**/*", block_heavy_assets)
             try:
+                # navigate to the URL
                 await page.goto(
                     url,
                     wait_until="commit",
                     timeout=int(DYNAMIC_RENDER_TIMEOUT_SECONDS * 1000),
                 )
+                # wait for the page to be loaded
                 try:
                     await page.wait_for_load_state(
                         "domcontentloaded",
@@ -70,9 +76,12 @@ async def render_dynamic_html(url: str) -> str:
                     )
                 except PlaywrightTimeoutError:
                     pass
+                # wait for the page to settle
                 await page.wait_for_timeout(POST_COMMIT_SETTLE_MILLISECONDS)
+                # return the HTML content
                 return await page.content()
             except PlaywrightTimeoutError:
+                # if PlaywrightTimeoutError is raised, return the partial usable HTML content
                 html = await page.content()
                 if _has_usable_html(html):
                     return html
@@ -87,6 +96,7 @@ async def render_dynamic_html(url: str) -> str:
             except Exception as exc:
                 if not _is_http2_protocol_error(exc):
                     raise
+                # if HTTP/2 protocol error is raised, return the HTML content with HTTP/2 disabled
                 return await render_with_args(
                     playwright.chromium,
                     [*BASE_CHROMIUM_ARGS, "--disable-http2"],

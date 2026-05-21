@@ -45,6 +45,7 @@ async def fetch_static_html(url: str) -> StaticFetchResult:
             for _ in range(MAX_REDIRECTS + 1):
                 response = await client.get(current_url)
 
+                # follow redirects
                 if response.is_redirect:
                     location = response.headers.get("location")
                     if not location:
@@ -53,13 +54,16 @@ async def fetch_static_html(url: str) -> StaticFetchResult:
                     await validate_public_url(current_url)
                     continue
 
+                # handle error responses
                 if response.status_code >= 400:
                     raise HTTPFetchError(f"Upstream returned HTTP {response.status_code}.")
 
+                # rejects oversized responses
                 content = response.content
                 if len(content) > MAX_RESPONSE_BYTES:
                     raise HTTPFetchError("Response exceeded maximum supported size.")
 
+                # rejects non-HTML responses
                 html = response.text
                 content_type = response.headers.get("content-type", "")
                 if content_type and not _looks_like_html(content_type, html):
